@@ -1,0 +1,37 @@
+services:
+  openclaw-jarvis:
+    build: .
+    image: openclaw-agent:v1.0.0
+    container_name: openclaw-jarvis
+    restart: unless-stopped
+    user: root
+    volumes:
+      - /data0/opt/claw/jarvis:/root
+      - /data0/opt/claw/shared:/persist
+      - /etc/localtime:/etc/localtime:ro
+    dns:
+      - "10.91.0.69"
+      - "1.0.0.1"
+    ports:
+      - "18789:18789"
+      - "18793:18793"
+    environment:
+      - TZ=Asia/Shanghai
+
+  openclaw-devil:
+    build: .
+    image: openclaw-agent:v1.0.0
+    container_name: openclaw-devil
+    restart: unless-stopped
+    user: root
+    volumes:
+      - /data0/opt/claw/devil:/root
+      - /data0/opt/claw/shared:/persist
+      - /etc/localtime:/etc/localtime:ro
+    dns:
+      - "10.91.0.69"
+      - "1.0.0.1"
+    ports:
+      - "18889:18789"
+    environment:
+      - TZ=Asia/Shanghai
