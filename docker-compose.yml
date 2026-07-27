@@ -3,24 +3,44 @@ services:
     build:
       context: .
       args:
-        - CUDA_VERSION=${CUDA_VERSION}
-        - CUDA_ARCH=${CUDA_ARCH}
-        - VERSION=${VERSION}
-    image: openclaw-drillson:${VERSION}-cu${CUDA_VERSION}-ar${CUDA_ARCH}
+        CUDA_VERSION: "${CUDA_VERSION:-13.1.1}"
+        NODE_VERSION: "${NODE_VERSION:-24.15.0}"
+        OPENCLAW_VERSION: "${OPENCLAW_VERSION:-2026.7.1-2}"
+        QMD_VERSION: "${QMD_VERSION:-2.5.3}"
+        CLAWHUB_VERSION: "${CLAWHUB_VERSION:-0.23.1}"
+        PPTXGENJS_VERSION: "${PPTXGENJS_VERSION:-4.0.1}"
+        MINIMAX_SKILLS_REF: "${MINIMAX_SKILLS_REF:-60aaae52bb2af8162732751a4332f62a5fef518b}"
+    image: "openclaw-jarvis:${OPENCLAW_VERSION:-2026.7.1-2}-cu${CUDA_VERSION:-13.1.1}"
     container_name: openclaw-jarvis
     restart: unless-stopped
-    user: root
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 1gb
     volumes:
-      - /data0/opt/claw/jarvis:/root
+      - /data0/opt/claw/jarvis/.openclaw:/home/node/.openclaw
+      - /data0/opt/claw/jarvis/.cache/qmd:/home/node/.cache/qmd
       - /data0/opt/claw/shared:/persist
       - /etc/localtime:/etc/localtime:ro
     dns:
       - "10.91.0.69"
       - "1.0.0.1"
     ports:
-      - "18789:18789"
-      - "18793:18793"
+      - "${OPENCLAW_BIND_ADDRESS:-127.0.0.1}:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
     environment:
-      - TZ=Asia/Shanghai
+      TZ: "${TZ:-Asia/Shanghai}"
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node/.openclaw
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+      OPENCLAW_GATEWAY_TOKEN: "${OPENCLAW_GATEWAY_TOKEN:?Set OPENCLAW_GATEWAY_TOKEN in .env}"
+      OPENCLAW_DISABLE_BONJOUR: "1"
+      OPENCLAW_SERVICE_REPAIR_POLICY: external
+      XDG_CACHE_HOME: /home/node/.cache
+      QMD_LLAMA_GPU: "${QMD_LLAMA_GPU:-cuda}"
+      QMD_EMBED_MODEL: "${QMD_EMBED_MODEL:-hf:Qwen/Qwen3-Embedding-0.6B-GGUF/Qwen3-Embedding-0.6B-Q8_0.gguf}"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
     devices:
       - nvidia.com/gpu=all
