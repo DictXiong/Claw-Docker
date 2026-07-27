@@ -1,7 +1,7 @@
 ARG NODE_VERSION=24.15.0
-FROM node:${NODE_VERSION}-bookworm-slim AS node-runtime
-
 ARG CUDA_VERSION=13.1.1
+
+FROM node:${NODE_VERSION}-bookworm-slim AS node-runtime
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04
 
 ARG OPENCLAW_VERSION=2026.7.1-2
