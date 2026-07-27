@@ -1,0 +1,4 @@
+.env.local
+*.tgz
+*.log
+.DS_Store
