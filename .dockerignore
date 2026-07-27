@@ -1,0 +1,7 @@
+.git
+.gitignore
+.env.local
+*.log
+*.tgz
+work/
+outputs/
