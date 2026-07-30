@@ -1,0 +1,122 @@
+diff --git a/skills/minimax-docx/SKILL.md b/skills/minimax-docx/SKILL.md
+--- a/skills/minimax-docx/SKILL.md
++++ b/skills/minimax-docx/SKILL.md
+@@ -38,18 +38,21 @@ description: >
+ 
+ ## Setup
+ 
+-**First time:** `bash scripts/setup.sh` (or `powershell scripts/setup.ps1` on Windows, `--minimal` to skip optional deps).
++**Container environment:** Dependencies are installed and the CLI is restored and built into the image. Do not run `scripts/setup.sh`.
+ 
+-**First operation in session:** `scripts/env_check.sh` — do not proceed if `NOT READY`. (Skip on subsequent operations within the same session.)
++**First operation in session:** `bash /opt/minimax-skills/skills/minimax-docx/scripts/env_check.sh` — do not proceed if `NOT READY`. (Skip on subsequent operations within the same session.)
+ 
+ ## Quick Start: Direct C# Path
+ 
+-When the task requires structural document manipulation (custom styles, complex tables, multi-section layouts, headers/footers, TOC, images), write C# directly instead of wrestling with CLI limitations. Use this scaffold:
++When the task requires structural document manipulation (custom styles, complex tables, multi-section layouts, headers/footers, TOC, images), create a normal .NET console project in a writable task directory under `/home/node/.openclaw/workspace/outputs/`. Never write generated code or build artifacts into this skill directory. Use this scaffold:
+ 
+ ```csharp
+-// File: scripts/dotnet/task.csx  (or a new .cs in a Console project)
+-// dotnet run --project scripts/dotnet/MiniMaxAIDocx.Cli -- run-script task.csx
+-#r "nuget: DocumentFormat.OpenXml, 3.2.0"
++// File: /home/node/.openclaw/workspace/outputs/<task>/Program.cs
++// Initialize:
++//   dotnet new console --framework net8.0 --output /home/node/.openclaw/workspace/outputs/<task>
++//   dotnet add /home/node/.openclaw/workspace/outputs/<task> package DocumentFormat.OpenXml --version 3.2.0
++// Run:
++//   dotnet run --project /home/node/.openclaw/workspace/outputs/<task>
+ 
+ using DocumentFormat.OpenXml;
+ using DocumentFormat.OpenXml.Packaging;
+@@ -70,7 +73,7 @@ mainPart.Document = new Document(new Body());
+ 
+ All CLI commands below use `$CLI` as shorthand for:
+ ```bash
+-dotnet run --project scripts/dotnet/MiniMaxAIDocx.Cli --
++dotnet run --project /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Cli --
+ ```
+ 
+ ## Pipeline routing
+diff --git a/skills/minimax-docx/references/xsd_validation_guide.md b/skills/minimax-docx/references/xsd_validation_guide.md
+--- a/skills/minimax-docx/references/xsd_validation_guide.md
++++ b/skills/minimax-docx/references/xsd_validation_guide.md
+@@ -3,14 +3,14 @@
+ ## Running Validation
+ 
+ ```bash
+ # Validate against the WML subset schema
+-dotnet run --project minimax-docx validate input.docx --xsd assets/xsd/wml-subset.xsd
++$CLI validate input.docx --xsd assets/xsd/wml-subset.xsd
+ 
+ # Validate against business rules (REQUIRED for Scenario C gate-check)
+-dotnet run --project minimax-docx validate input.docx --xsd assets/xsd/business-rules.xsd
++$CLI validate input.docx --xsd assets/xsd/business-rules.xsd
+ 
+ # Validate against both
+-dotnet run --project minimax-docx validate input.docx --xsd assets/xsd/wml-subset.xsd --xsd assets/xsd/business-rules.xsd
++$CLI validate input.docx --xsd assets/xsd/wml-subset.xsd --xsd assets/xsd/business-rules.xsd
+ ```
+ 
+ ---
+
+diff --git a/skills/minimax-pdf/scripts/render_cover.js b/skills/minimax-pdf/scripts/render_cover.js
+--- a/skills/minimax-pdf/scripts/render_cover.js
++++ b/skills/minimax-pdf/scripts/render_cover.js
+@@ -10,6 +10,7 @@
+  */
+ 
+ const path = require("path");
+ const fs   = require("fs");
++const { chromium } = require("playwright");
+ 
+ function usage() {
+@@ -33,42 +34,18 @@ if (!fs.existsSync(inputFile)) {
+   process.exit(1);
+ }
+ 
+-// ── Playwright loader (tolerates global npm installs) ─────────────────────────
+-function loadPlaywright() {
+-  const { execSync } = require("child_process");
+-  try { return require("playwright"); } catch (_) {}
+-  try {
+-    const root = execSync("npm root -g", { stdio: ["ignore","pipe","ignore"] }).toString().trim();
+-    return require(path.join(root, "playwright"));
+-  } catch (_) {}
+-  console.error(JSON.stringify({
+-    status: "error",
+-    error: "playwright not found",
+-    hint: "Run: npm install -g playwright && npx playwright install chromium"
+-  }));
+-  process.exit(2);
+-}
+-
+ // ── Main ───────────────────────────────────────────────────────────────────────
+ (async () => {
+-  const { chromium } = loadPlaywright();
+-
+   let browser;
+   try {
+     browser = await chromium.launch();
+   } catch (e) {
+-    // Chromium binary missing — try installing
+-    const { spawnSync } = require("child_process");
+-    const r = spawnSync("npx", ["playwright", "install", "chromium"], { stdio: "inherit", shell: true });
+-    if (r.status !== 0) {
+-      console.error(JSON.stringify({
+-        status: "error",
+-        error: "Chromium not installed and auto-install failed",
+-        hint: "Run: npx playwright install chromium"
+-      }));
+-      process.exit(2);
+-    }
+-    browser = await chromium.launch();
++    console.error(JSON.stringify({
++      status: "error",
++      error: `Chromium failed to start: ${e.message}`,
++      hint: "Playwright and Chromium are managed by the container image"
++    }));
++    process.exit(2);
+   }
+ 
+   try {
