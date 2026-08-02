@@ -1,8 +1,35 @@
 ARG NODE_VERSION=24.15.0
-ARG CUDA_VERSION=13.1.1
 
 FROM node:${NODE_VERSION}-bookworm-slim AS node-runtime
-FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04
+
+FROM mcr.microsoft.com/dotnet/sdk:8.0-noble AS minimax-builder
+
+ARG MINIMAX_SKILLS_REF=60aaae52bb2af8162732751a4332f62a5fef518b
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY patches/minimax-skills-openclaw.patch /tmp/minimax-skills-openclaw.patch
+
+RUN git clone --filter=blob:none --no-checkout https://github.com/MiniMax-AI/skills.git /opt/minimax-skills \
+    && git -C /opt/minimax-skills sparse-checkout init --cone \
+    && git -C /opt/minimax-skills sparse-checkout set \
+      skills/minimax-docx skills/minimax-pdf skills/minimax-xlsx skills/pptx-generator \
+    && git -C /opt/minimax-skills checkout "${MINIMAX_SKILLS_REF}" \
+    && git -C /opt/minimax-skills apply /tmp/minimax-skills-openclaw.patch \
+    && chmod +x /opt/minimax-skills/skills/minimax-docx/scripts/*.sh \
+    && dotnet publish --configuration Release --runtime linux-x64 --self-contained true \
+      -p:PublishSingleFile=true --output /opt/minimax-docx-cli \
+      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Cli/MiniMaxAIDocx.Cli.csproj \
+    && rm -rf \
+      /opt/minimax-skills/.git \
+      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Cli/bin \
+      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Cli/obj \
+      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Core/bin \
+      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Core/obj \
+      /opt/minimax-docx-cli/*.pdb
+
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/node \
@@ -22,12 +49,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
 COPY --from=node-runtime /usr/local/ /usr/local/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential ca-certificates cmake curl dnsutils dotnet-sdk-8.0 \
+      ca-certificates curl dnsutils \
       fd-find fonts-liberation fonts-noto-cjk git gosu iproute2 iputils-ping \
       jq knot-dnsutils less libreoffice-calc libreoffice-core libreoffice-impress \
-      libreoffice-writer make openssh-client pandoc pkg-config poppler-utils \
-      python3 python3-dev python3-venv ripgrep socat tini \
-      unzip wget zip \
+      libreoffice-writer openssh-client pandoc poppler-utils \
+      python3 python3-venv ripgrep socat tini \
+      unzip zip \
     && ln -s /usr/bin/fdfind /usr/local/bin/fd \
     && rm -rf /var/lib/apt/lists/*
 
@@ -35,11 +62,8 @@ ARG PLAYWRIGHT_VERSION=1.61.0
 
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir \
-      certifi lxml markitdown numpy openpyxl pandas pillow "playwright==${PLAYWRIGHT_VERSION}" \
-      pymupdf pypdf python-docx python-pptx reportlab scipy
-
-RUN /opt/venv/bin/python -m playwright install chromium --with-deps \
-    && rm -rf /var/lib/apt/lists/*
+      certifi lxml markitdown numpy openpyxl pandas pillow \
+      pymupdf pypdf python-docx python-pptx reportlab
 
 ARG OPENCLAW_VERSION=2026.7.1-2
 ARG CLAWHUB_VERSION=0.23.1
@@ -52,32 +76,17 @@ RUN npm install --global \
       "playwright@${PLAYWRIGHT_VERSION}" \
     && npm cache clean --force
 
-COPY patches/minimax-skills-openclaw.patch /tmp/minimax-skills-openclaw.patch
+RUN playwright install chromium --with-deps --only-shell \
+    && rm -rf /var/lib/apt/lists/*
 
-ARG MINIMAX_SKILLS_REF=60aaae52bb2af8162732751a4332f62a5fef518b
-
-RUN git clone --filter=blob:none --no-checkout https://github.com/MiniMax-AI/skills.git /opt/minimax-skills \
-    && git -C /opt/minimax-skills sparse-checkout init --cone \
-    && git -C /opt/minimax-skills sparse-checkout set \
-      skills/minimax-docx skills/minimax-pdf skills/minimax-xlsx skills/pptx-generator \
-    && git -C /opt/minimax-skills checkout "${MINIMAX_SKILLS_REF}" \
-    && git -C /opt/minimax-skills apply /tmp/minimax-skills-openclaw.patch \
-    && chmod +x /opt/minimax-skills/skills/minimax-docx/scripts/*.sh \
-    && dotnet restore \
-      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Cli/MiniMaxAIDocx.Cli.csproj \
-    && dotnet build --configuration Debug --no-restore \
-      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Cli/MiniMaxAIDocx.Cli.csproj
+COPY --from=minimax-builder /opt/minimax-skills /opt/minimax-skills
+COPY --from=minimax-builder /opt/minimax-docx-cli /opt/minimax-docx-cli
 
 RUN groupadd --gid 1001 node \
     && useradd --uid 1001 --gid node --groups root --home-dir /home/node --no-create-home --shell /bin/bash node \
     && install -d -m 0700 -o node -g node \
       /home/node/.openclaw /home/node/.openclaw/workspace /home/node/.cache \
     && chown -R node:node /home/node \
-    && chown -R node:node \
-      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Cli/bin \
-      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Cli/obj \
-      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Core/bin \
-      /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Core/obj \
     && rm -rf /tmp/* /var/tmp/*
 
 COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh

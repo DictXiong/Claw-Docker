@@ -1,80 +1,134 @@
 diff --git a/skills/minimax-docx/SKILL.md b/skills/minimax-docx/SKILL.md
 --- a/skills/minimax-docx/SKILL.md
 +++ b/skills/minimax-docx/SKILL.md
-@@ -38,18 +38,21 @@ description: >
- 
+@@ -38,18 +38,16 @@ description: >
+
  ## Setup
- 
+
 -**First time:** `bash scripts/setup.sh` (or `powershell scripts/setup.ps1` on Windows, `--minimal` to skip optional deps).
-+**Container environment:** Dependencies are installed and the CLI is restored and built into the image. Do not run `scripts/setup.sh`.
- 
++**Container environment:** Dependencies and a precompiled CLI are installed in the image. The image does not include the .NET SDK: use the CLI for all operations, treat the C# sections as implementation reference only, and do not run `dotnet` or `scripts/setup.sh`.
+
 -**First operation in session:** `scripts/env_check.sh` — do not proceed if `NOT READY`. (Skip on subsequent operations within the same session.)
 +**First operation in session:** `bash /opt/minimax-skills/skills/minimax-docx/scripts/env_check.sh` — do not proceed if `NOT READY`. (Skip on subsequent operations within the same session.)
- 
+
  ## Quick Start: Direct C# Path
- 
+
 -When the task requires structural document manipulation (custom styles, complex tables, multi-section layouts, headers/footers, TOC, images), write C# directly instead of wrestling with CLI limitations. Use this scaffold:
-+When the task requires structural document manipulation (custom styles, complex tables, multi-section layouts, headers/footers, TOC, images), create a normal .NET console project in a writable task directory under `/home/node/.openclaw/workspace/outputs/`. Never write generated code or build artifacts into this skill directory. Use this scaffold:
- 
++The image uses the precompiled CLI for structural document manipulation. The following C# scaffold is reference material only; do not try to compile or execute it in the container:
+
  ```csharp
 -// File: scripts/dotnet/task.csx  (or a new .cs in a Console project)
 -// dotnet run --project scripts/dotnet/MiniMaxAIDocx.Cli -- run-script task.csx
 -#r "nuget: DocumentFormat.OpenXml, 3.2.0"
-+// File: /home/node/.openclaw/workspace/outputs/<task>/Program.cs
-+// Initialize:
-+//   dotnet new console --framework net8.0 --output /home/node/.openclaw/workspace/outputs/<task>
-+//   dotnet add /home/node/.openclaw/workspace/outputs/<task> package DocumentFormat.OpenXml --version 3.2.0
-+// Run:
-+//   dotnet run --project /home/node/.openclaw/workspace/outputs/<task>
- 
++// Reference only. Use $CLI commands in this container.
+
  using DocumentFormat.OpenXml;
  using DocumentFormat.OpenXml.Packaging;
-@@ -70,7 +73,7 @@ mainPart.Document = new Document(new Body());
- 
+@@ -70,7 +68,7 @@ mainPart.Document = new Document(new Body());
+
  All CLI commands below use `$CLI` as shorthand for:
  ```bash
 -dotnet run --project scripts/dotnet/MiniMaxAIDocx.Cli --
-+dotnet run --project /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Cli --
++/opt/minimax-docx-cli/MiniMaxAIDocx.Cli
  ```
- 
+
  ## Pipeline routing
+@@ -113,6 +111,6 @@ Read `references/scenario_a_create.md`, `references/typography_guide.md`, and `r
+ **Choose your path:**
+ - **Simple** (plain text, minimal formatting): use CLI — `$CLI create --type report --output out.docx --config content.json`
+-- **Structural** (custom styles, multi-section, TOC, images, complex tables): write C# directly. Read the relevant `Samples/*.cs` first.
++- **Structural** (custom styles, multi-section, TOC, images, complex tables): use the closest supported CLI operation and read `Samples/*.cs` only as implementation reference. If the CLI is insufficient, use LibreOffice or Python OOXML tooling in a writable task directory; do not invoke `dotnet`.
+
+ CLI options: `--type` (report|letter|memo|academic), `--title`, `--author`, `--page-size` (letter|a4|legal|a3), `--margins` (standard|narrow|wide), `--header`, `--footer`, `--page-numbers`, `--toc`, `--content-json`.
+
+@@ -124,7 +122,7 @@ Read `references/scenario_b_edit_content.md` first. Preview → analyze → edit → v
+
+ **Choose your path:**
+ - **Simple** (text replacement, placeholder fill): use CLI subcommands.
+-- **Structural** (add/reorganize sections, modify styles, manipulate tables, insert images): write C# directly. Read `references/openxml_element_order.md` and the relevant `Samples/*.cs`.
++- **Structural** (add/reorganize sections, modify styles, manipulate tables, insert images): use the closest supported CLI operation. If necessary, use LibreOffice or Python OOXML tooling in a writable task directory; do not invoke `dotnet`.
+
+ Available CLI edit subcommands:
+ - `replace-text --find "X" --replace "Y"`
+@@ -151,6 +149,6 @@ $CLI apply-template --input source.docx --template template.docx --output out.do
+ ```
+
+-For complex template operations (multi-template merge, per-section headers/footers, style merging), write C# directly — see Critical Rules below for required patterns.
++For complex template operations (multi-template merge, per-section headers/footers, style merging), use the CLI where supported; otherwise use LibreOffice or Python OOXML tooling in a writable task directory. See Critical Rules below for required patterns, and do not invoke `dotnet`.
+
+ Run the **validation pipeline**, then the **hard gate-check**:
+ ```bash
 diff --git a/skills/minimax-docx/references/xsd_validation_guide.md b/skills/minimax-docx/references/xsd_validation_guide.md
 --- a/skills/minimax-docx/references/xsd_validation_guide.md
 +++ b/skills/minimax-docx/references/xsd_validation_guide.md
 @@ -3,14 +3,14 @@
  ## Running Validation
- 
+
  ```bash
  # Validate against the WML subset schema
 -dotnet run --project minimax-docx validate input.docx --xsd assets/xsd/wml-subset.xsd
 +$CLI validate input.docx --xsd assets/xsd/wml-subset.xsd
- 
+
  # Validate against business rules (REQUIRED for Scenario C gate-check)
 -dotnet run --project minimax-docx validate input.docx --xsd assets/xsd/business-rules.xsd
 +$CLI validate input.docx --xsd assets/xsd/business-rules.xsd
- 
+
  # Validate against both
 -dotnet run --project minimax-docx validate input.docx --xsd assets/xsd/wml-subset.xsd --xsd assets/xsd/business-rules.xsd
 +$CLI validate input.docx --xsd assets/xsd/wml-subset.xsd --xsd assets/xsd/business-rules.xsd
  ```
- 
+
  ---
+
+diff --git a/skills/minimax-docx/scripts/env_check.sh b/skills/minimax-docx/scripts/env_check.sh
+--- a/skills/minimax-docx/scripts/env_check.sh
++++ b/skills/minimax-docx/scripts/env_check.sh
+@@ -7,5 +7,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ DOTNET_DIR="$SCRIPT_DIR/dotnet"
++SELF_CONTAINED_CLI="/opt/minimax-docx-cli/MiniMaxAIDocx.Cli"
+
+ # Force English output for dotnet CLI
+ export DOTNET_CLI_UI_LANGUAGE=en
+@@ -29,7 +30,9 @@ case "$(uname -s)" in
+ esac
+
+ # --- Critical: .NET SDK ---
+-if ! command -v dotnet &>/dev/null; then
++if [ -x "$SELF_CONTAINED_CLI" ]; then
++    printf "[OK]      %-14s precompiled CLI\n" "runtime"
++elif ! command -v dotnet &>/dev/null; then
+     printf "[FAIL]    %-14s not found\n" "dotnet"
+     echo ""
+     echo "  .NET SDK is REQUIRED. Install it:"
+@@ -68,7 +71,9 @@ else
+
+ # --- Critical: NuGet packages ---
+-if [ -d "$DOTNET_DIR" ]; then
+-    if [ -f "$DOTNET_DIR/MiniMaxAIDocx.Cli/bin/Debug/net10.0/MiniMaxAIDocx.Cli.dll" ] || \
++if [ -x "$SELF_CONTAINED_CLI" ]; then
++    printf "[OK]      %-14s precompiled\n" "project"
++elif [ -d "$DOTNET_DIR" ]; then
++    if [ -f "$DOTNET_DIR/MiniMaxAIDocx.Cli/bin/Debug/net10.0/MiniMaxAIDocx.Cli.dll" ] || \
+        [ -f "$DOTNET_DIR/MiniMaxAIDocx.Cli/bin/Debug/net8.0/MiniMaxAIDocx.Cli.dll" ]; then
+         printf "[OK]      %-14s built\n" "project"
+     else
 
 diff --git a/skills/minimax-pdf/scripts/render_cover.js b/skills/minimax-pdf/scripts/render_cover.js
 --- a/skills/minimax-pdf/scripts/render_cover.js
 +++ b/skills/minimax-pdf/scripts/render_cover.js
 @@ -10,6 +10,7 @@
   */
- 
+
  const path = require("path");
  const fs   = require("fs");
 +const { chromium } = require("playwright");
- 
+
  function usage() {
 @@ -33,42 +34,18 @@ if (!fs.existsSync(inputFile)) {
    process.exit(1);
  }
- 
+
 -// ── Playwright loader (tolerates global npm installs) ─────────────────────────
 -function loadPlaywright() {
 -  const { execSync } = require("child_process");
@@ -118,5 +172,5 @@ diff --git a/skills/minimax-pdf/scripts/render_cover.js b/skills/minimax-pdf/scr
 +    }));
 +    process.exit(2);
    }
- 
+
    try {

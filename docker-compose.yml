@@ -3,14 +3,13 @@ services:
     build:
       context: .
       args:
-        CUDA_VERSION: "${CUDA_VERSION:-13.1.1}"
         NODE_VERSION: "${NODE_VERSION:-24.15.0}"
         OPENCLAW_VERSION: "${OPENCLAW_VERSION:-2026.7.1-2}"
         CLAWHUB_VERSION: "${CLAWHUB_VERSION:-0.23.1}"
         PPTXGENJS_VERSION: "${PPTXGENJS_VERSION:-4.0.1}"
         PLAYWRIGHT_VERSION: "${PLAYWRIGHT_VERSION:-1.61.0}"
         MINIMAX_SKILLS_REF: "${MINIMAX_SKILLS_REF:-60aaae52bb2af8162732751a4332f62a5fef518b}"
-    image: "openclaw-jarvis:${OPENCLAW_VERSION:-2026.7.1-2}-cu${CUDA_VERSION:-13.1.1}"
+    image: "openclaw-jarvis:${OPENCLAW_VERSION:-2026.7.1-2}"
     container_name: openclaw-jarvis
     restart: unless-stopped
     stop_grace_period: 30s
@@ -24,9 +23,8 @@ services:
         bind:
           create_host_path: false
       - type: bind
-        source: /data0/opt/claw/shared
-        target: /home/node/.openclaw/workspace/shared-readonly
-        read_only: true
+        source: /tank1/entity.backup1/Obsidian
+        target: /home/node/.openclaw/workspace/obsidian
         bind:
           create_host_path: false
       - type: bind
@@ -56,7 +54,3 @@ services:
       OPENCLAW_DISABLE_BONJOUR: "1"
       OPENCLAW_SERVICE_REPAIR_POLICY: external
       XDG_CACHE_HOME: /home/node/.cache
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    devices:
-      - nvidia.com/gpu=all
