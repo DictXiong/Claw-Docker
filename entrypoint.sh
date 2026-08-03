@@ -8,8 +8,6 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${HOME}/.cache}"
 
 MANAGED_SKILLS_DIR="${OPENCLAW_STATE_DIR}/skills"
 LEGACY_SKILLS_DIR="${OPENCLAW_WORKSPACE_DIR}/skills"
-OBSIDIAN_DIR="${OPENCLAW_WORKSPACE_DIR}/obsidian"
-ONEDRIVE_READONLY_DIR="${OPENCLAW_WORKSPACE_DIR}/onedrive-readonly"
 OUTPUTS_DIR="${OPENCLAW_WORKSPACE_DIR}/outputs"
 MINIMAX_SKILLS_DIR="/opt/minimax-skills/skills"
 
@@ -36,11 +34,9 @@ bootstrap_runtime() {
 bootstrap_runtime
 
 if [[ "$(id -u)" == "0" ]]; then
-  find "${OPENCLAW_STATE_DIR}" \
-    -path "${OBSIDIAN_DIR}" -prune -o \
-    -path "${ONEDRIVE_READONLY_DIR}" -prune -o \
-    -exec chown -h node:node {} +
-  chown -R node:node "${XDG_CACHE_HOME}"
+  chown -h node:node \
+    "${OPENCLAW_STATE_DIR}" "${OPENCLAW_WORKSPACE_DIR}" \
+    "${MANAGED_SKILLS_DIR}" "${OUTPUTS_DIR}" "${XDG_CACHE_HOME}"
   exec gosu node "$0" "$@"
 fi
 

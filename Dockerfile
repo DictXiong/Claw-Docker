@@ -1,10 +1,8 @@
-ARG NODE_VERSION=24.15.0
+FROM node:24.15.0-bookworm-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS node-runtime
 
-FROM node:${NODE_VERSION}-bookworm-slim AS node-runtime
+FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:72b30253425d2707ea1dda364477136003586a9bdab63a988a84d1710f940d35 AS minimax-builder
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0-noble AS minimax-builder
-
-ARG MINIMAX_SKILLS_REF=60aaae52bb2af8162732751a4332f62a5fef518b
+ARG MINIMAX_SKILLS_REF
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
@@ -29,7 +27,7 @@ RUN git clone --filter=blob:none --no-checkout https://github.com/MiniMax-AI/ski
       /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Core/obj \
       /opt/minimax-docx-cli/*.pdb
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
 
 ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/node \
@@ -40,7 +38,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     OPENCLAW_CONFIG_PATH=/home/node/.openclaw/openclaw.json \
     OPENCLAW_WORKSPACE_DIR=/home/node/.openclaw/workspace \
     XDG_CACHE_HOME=/home/node/.cache \
-    NODE_PATH=/usr/local/lib/node_modules \
+    NODE_PATH=/opt/node-tools/node_modules \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin \
@@ -58,22 +56,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ln -s /usr/bin/fdfind /usr/local/bin/fd \
     && rm -rf /var/lib/apt/lists/*
 
-ARG PLAYWRIGHT_VERSION=1.61.0
-
+COPY requirements.lock /tmp/requirements.lock
 RUN python3 -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir \
-      certifi lxml markitdown numpy openpyxl pandas pillow \
-      pymupdf pypdf python-docx python-pptx reportlab
+    && /opt/venv/bin/pip install --no-cache-dir --requirement /tmp/requirements.lock \
+    && rm /tmp/requirements.lock
 
-ARG OPENCLAW_VERSION=2026.7.1-2
-ARG CLAWHUB_VERSION=0.23.1
-ARG PPTXGENJS_VERSION=4.0.1
-
-RUN npm install --global \
-      "openclaw@${OPENCLAW_VERSION}" \
-      "clawhub@${CLAWHUB_VERSION}" \
-      "pptxgenjs@${PPTXGENJS_VERSION}" \
-      "playwright@${PLAYWRIGHT_VERSION}" \
+COPY package.json package-lock.json /opt/node-tools/
+RUN npm ci --prefix /opt/node-tools --omit=dev --no-audit --no-fund \
+    && ln -s /opt/node-tools/node_modules/.bin/openclaw /usr/local/bin/openclaw \
+    && ln -s /opt/node-tools/node_modules/.bin/clawhub /usr/local/bin/clawhub \
+    && ln -s /opt/node-tools/node_modules/.bin/playwright /usr/local/bin/playwright \
     && npm cache clean --force
 
 RUN playwright install chromium --with-deps --only-shell \

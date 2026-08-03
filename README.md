@@ -4,7 +4,7 @@
 
 ## 镜像包含
 
-- OpenClaw（版本锁定在 `.env`）
+- OpenClaw、ClawHub、Playwright 和 PptxGenJS（锁定在 `package-lock.json`）
 - Node.js 24、Python 3
 - `fd`、`ripgrep`、`jq` 等文件查找和文本处理工具
 - Chromium / Playwright
@@ -19,24 +19,37 @@ MiniMax 技能在构建时按 commit SHA 锁定，并在启动时链接到：
 
 `minimax-docx` CLI 会在独立构建阶段发布为自包含可执行文件，运行镜像不包含 .NET SDK，也不会在运行时编译源码。容器专用说明由 `patches/minimax-skills-openclaw.patch` 应用，上游 commit 更新后需要重新检查该补丁。
 
-## 首次部署
+基础镜像按 registry digest 固定，Python 依赖锁定在 `requirements.lock`。`.env` 只保存 MiniMax skills commit 和 Compose 运行参数。
+
+## 运行方式
+
+sir0 的生产实例由 NixOS `virtualisation.oci-containers` 和 `docker-openclaw-jarvis.service` 管理。服务每次启动都会拉取 GHCR 的 `latest` 镜像；完整 Git SHA 标签用于审计和回退。
+
+> [!WARNING]
+> `docker-compose.yml` 已弃用，不再用于生产或新部署。它仅为兼容旧流程、临时构建和紧急回退而保留，后续可能删除。
+
+以下命令对两种运行方式都适用：
+
+```bash
+docker inspect openclaw-jarvis
+docker logs -f openclaw-jarvis
+docker exec --user node openclaw-jarvis openclaw channels status --json
+```
+
+NixOS 服务状态和日志使用：
+
+```bash
+systemctl status docker-openclaw-jarvis
+journalctl -u docker-openclaw-jarvis -f
+```
+
+## Docker Compose（已弃用）
 
 先创建持久化目录：
 
 ```bash
 sudo mkdir -p /data0/opt/claw/jarvis/.openclaw
 ```
-
-Obsidian 双向同步目录以可写方式挂载。镜像中的 `node` 用户（UID/GID 1001）属于 `root` 附加组，因此宿主机目录保持 `root:root`，只需授予组读写和遍历权限：
-
-```bash
-sudo chown root:root /tank1/entity.backup1/Obsidian
-sudo chmod 0770 /tank1/entity.backup1/Obsidian
-```
-
-Obsidian 中已有的子目录和文件也必须允许 `root` 组写入；同步程序新建内容时同样需要保留组写权限。不要对该目录执行递归 `chown`，启动脚本也会跳过此 bind mount。`node` 的附加组不会赋予 root 用户身份，只会应用普通的组权限。
-
-不使用 ACL 时，应确保同步程序以 `umask 0002`（或等效设置）创建内容，使新目录和文件继续保留组写权限。
 
 然后构建并初始化：
 
@@ -52,58 +65,39 @@ docker compose up -d
 DuckDuckGo 是无需 API Key 的实验性搜索 provider，OpenClaw 不会自动选择无密钥 provider。启动后需要显式启用一次：
 
 ```bash
-docker compose exec --user node openclaw-jarvis \
+docker exec --user node openclaw-jarvis \
   openclaw config set tools.web.search.provider '"duckduckgo"' --strict-json
-docker compose exec --user node openclaw-jarvis \
+docker exec --user node openclaw-jarvis \
   openclaw capability web search --query "OpenClaw official documentation" --json
 ```
 
 查看状态：
 
 ```bash
-docker compose ps
-docker compose logs -f openclaw-jarvis
+docker inspect openclaw-jarvis --format '{{.State.Status}} {{.State.Health.Status}}'
+docker logs -f openclaw-jarvis
 curl --noproxy '*' -fsS http://10.255.0.2:18789/healthz
 ```
 
 Docker daemon 运行在独立网络命名空间中，Compose 在该命名空间发布 `18789:18789`，当前命名空间通过 `10.255.0.2:18789` 访问。网关启用 token 认证；不要把该端口继续转发到公网。
 
-## 从旧容器升级
+## 旧 Compose 容器迁移（已弃用）
 
-新版 Compose 直接复用原部署中的状态目录：
+该兼容配置直接复用原部署中的状态目录：
 
 - `/data0/opt/claw/jarvis/.openclaw`：配置、工作区、会话和技能
 
 因此不需要重新构建一个空的 OpenClaw。旧的 `/data0/opt/claw/shared` 挂载不再使用。
 
-不要把旧 `workspace/skills` 整体复制到新 workspace。同名 workspace skill 的优先级高于镜像提供的 managed skill 和 OpenClaw bundled skill，会导致新版被旧副本覆盖。
+启动脚本只调整镜像自己管理的目录，不再递归修改整个状态目录，因此新增任意只读 bind mount 都不会被 `chown`。如果迁移来的状态文件属主不正确，应在没有挂载 workspace 外部目录的临时容器中执行一次修复：
 
-宿主机的双向同步 Obsidian 目录以可写方式挂载到 agent workspace：
-
-`/home/node/.openclaw/workspace/obsidian`
-
-OneDrive 的 download-only 副本也以只读方式挂载：
-
-`/home/node/.openclaw/workspace/onedrive-readonly`
-
-智能体可以直接查找、发送和修改 `obsidian` 中的文件；修改和删除会通过同步程序传播到其他设备。`onedrive-readonly` 中的原文件仍不可修改。启动脚本会创建可写的输出目录：
-
-`/home/node/.openclaw/workspace/outputs`
-
-需要修改 OneDrive 文件时，先把原文件复制到 `outputs`，再修改并发送副本。
-
-完成 onboarding 后，在 workspace 的 `AGENTS.md` 中加入：
-
-```markdown
-## File locations
-
-- `obsidian/` is the writable, bidirectionally synced Obsidian vault.
-- You may search, read, create, and edit files in `obsidian/` when requested.
-- Changes, moves, and deletions in `obsidian/` sync to other devices. Confirm before destructive or bulk operations.
-- `onedrive-readonly/` is the read-only view of the OneDrive download-only backup.
-- Search, read, and send files directly from `onedrive-readonly/`, but never modify, move, or delete them there.
-- To modify a OneDrive file, copy it to `outputs/`, edit the copy, and send the copy.
+```bash
+docker run --rm --entrypoint chown \
+  --mount type=bind,source=/data0/opt/claw/jarvis/.openclaw,target=/state \
+  openclaw-jarvis:local -R 1001:1001 /state
 ```
+
+不要把旧 `workspace/skills` 整体复制到新 workspace。同名 workspace skill 的优先级高于镜像提供的 managed skill 和 OpenClaw bundled skill，会导致新版被旧副本覆盖。
 
 升级前建议备份：
 
@@ -114,14 +108,26 @@ sudo tar -C /data0/opt/claw/jarvis -czf openclaw-state-backup.tgz .openclaw
 ## 验证文档技能
 
 ```bash
-docker compose exec openclaw-jarvis \
+docker exec openclaw-jarvis \
   ls -l /home/node/.openclaw/skills
 ```
 
 ## 更新版本
 
-修改 `.env` 中的锁定版本或 MiniMax commit SHA，重新构建镜像后再启动。不要在运行中的容器里执行全局自更新，因为容器重建会覆盖这类修改。
+更新 Node.js 或基础发行版时，修改 Dockerfile 中的版本并同步刷新 registry digest；更新 MiniMax skills 时修改 `.env`。更新 OpenClaw、ClawHub、Playwright 或 PptxGenJS 时修改 `package.json`，然后重新生成 lock：
+
+```bash
+npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+```
+
+更新 Python 依赖时重新生成并审查 `requirements.lock`。重新构建镜像后再启动；不要在运行中的容器里执行全局自更新，因为容器重建会覆盖这类修改。
 
 ## 发布镜像
 
-`main` 分支中的镜像相关文件发生变化时，GitHub Actions 会构建 `linux/amd64` 镜像并推送到 `ghcr.io/dictxiong/claw-docker`。每次构建发布 OpenClaw 版本、完整 Git commit SHA 和 `latest` 三类标签；也可以在 Actions 页面手动触发。私有 package 在拉取前需要先登录 GHCR。
+`main` 分支中的镜像相关文件发生变化时，GitHub Actions 会先构建并执行 runtime smoke tests，通过后再将 `linux/amd64` 镜像推送到 `ghcr.io/dictxiong/claw-docker`。每次构建发布以下标签：
+
+- `<OpenClaw version>-<full Git commit SHA>`
+- `sha-<full Git commit SHA>`
+- `latest`（仅默认分支，可变）
+
+sir0 使用 `latest` 并配置 `pullPolicy = "always"`；需要回退时改用完整 Git SHA 标签或 digest。私有 package 在拉取前需要先登录 GHCR。

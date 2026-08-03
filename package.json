@@ -1,0 +1,11 @@
+{
+  "name": "claw-docker-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "clawhub": "0.23.1",
+    "openclaw": "2026.7.1-2",
+    "playwright": "1.61.0",
+    "pptxgenjs": "4.0.1"
+  }
+}
