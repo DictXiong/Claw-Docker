@@ -48,10 +48,10 @@ COPY --from=node-runtime /usr/local/ /usr/local/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl dnsutils \
-      fd-find fonts-liberation fonts-noto-cjk git gosu iproute2 iputils-ping \
+      fd-find fonts-liberation fonts-noto-cjk ghostscript git gosu iproute2 iputils-ping \
       jq knot-dnsutils less libreoffice-calc libreoffice-core libreoffice-impress \
       libreoffice-writer openssh-client pandoc poppler-utils \
-      python3 python3-venv ripgrep socat tini \
+      python3 python3-venv qpdf ripgrep socat tini \
       unzip zip \
     && ln -s /usr/bin/fdfind /usr/local/bin/fd \
     && rm -rf /var/lib/apt/lists/*
