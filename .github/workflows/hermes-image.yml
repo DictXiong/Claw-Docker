@@ -1,34 +1,32 @@
-name: Container image
+name: Hermes image
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .env
+      - images/hermes/**
+      - .github/workflows/hermes-image.yml
   push:
     branches:
       - main
     paths:
-      - .dockerignore
       - .env
-      - Dockerfile
-      - entrypoint.sh
-      - package.json
-      - package-lock.json
-      - requirements.lock
-      - patches/**
-      - scripts/**
-      - .github/workflows/container-image.yml
+      - images/hermes/**
+      - .github/workflows/hermes-image.yml
 
 permissions:
   contents: read
   packages: write
 
 concurrency:
-  group: container-image-${{ github.ref }}
+  group: hermes-image-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Check out repository
@@ -42,10 +40,10 @@ jobs:
           set -a
           source .env
           set +a
+          : "${HERMES_AGENT_VERSION:?HERMES_AGENT_VERSION is required}"
           : "${MINIMAX_SKILLS_REF:?MINIMAX_SKILLS_REF is required}"
-          openclaw="$(node -p "require('./package.json').dependencies.openclaw")"
           {
-            echo "openclaw=${openclaw}"
+            echo "hermes=${HERMES_AGENT_VERSION}"
             echo "minimax_skills_ref=${MINIMAX_SKILLS_REF}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -55,19 +53,20 @@ jobs:
       - name: Build smoke-test image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: images/hermes
           platforms: linux/amd64
           load: true
-          tags: openclaw-smoke:${{ github.sha }}
+          tags: hermes-smoke:${{ github.sha }}
           build-args: |
             MINIMAX_SKILLS_REF=${{ steps.versions.outputs.minimax_skills_ref }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=hermes
+          cache-to: type=gha,mode=max,scope=hermes
 
       - name: Smoke test image
-        run: scripts/smoke-test.sh openclaw-smoke:${{ github.sha }}
+        run: images/hermes/scripts/smoke-test.sh hermes-smoke:${{ github.sha }}
 
       - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -75,25 +74,27 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate image metadata
+        if: github.event_name != 'pull_request'
         id: metadata
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/dictxiong/claw-docker
+          images: ghcr.io/dictxiong/hermes-docker
           tags: |
-            type=raw,value=${{ steps.versions.outputs.openclaw }}-${{ github.sha }}
+            type=raw,value=${{ steps.versions.outputs.hermes }}-${{ github.sha }}
             type=sha,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push image
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: images/hermes
           platforms: linux/amd64
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           build-args: |
             MINIMAX_SKILLS_REF=${{ steps.versions.outputs.minimax_skills_ref }}
-          cache-from: type=gha
+          cache-from: type=gha,scope=hermes
           provenance: mode=max
           sbom: true

@@ -1,0 +1,15 @@
+defusedxml
+lxml
+lark-oapi==1.6.8
+markitdown[pptx,xlsx]
+openpyxl
+pandas
+pdfplumber
+pillow
+pymupdf
+pymupdf4llm
+pypdf
+python-docx
+python-pptx
+qrcode==7.4.2
+reportlab

@@ -1,0 +1,120 @@
+name: jarvis-agents
+
+services:
+  openclaw:
+    profiles: [openclaw]
+    build:
+      context: ./images/openclaw
+      args:
+        MINIMAX_SKILLS_REF: "${MINIMAX_SKILLS_REF:?MINIMAX_SKILLS_REF must be set in .env}"
+    image: "${OPENCLAW_IMAGE:-openclaw-jarvis:local}"
+    container_name: openclaw-jarvis
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 1gb
+    volumes:
+      - type: bind
+        source: "${OPENCLAW_STATE_DIR:?Set OPENCLAW_STATE_DIR}"
+        target: /home/node/.openclaw
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${OBSIDIAN_DIR:?Set OBSIDIAN_DIR}"
+        target: /home/node/.openclaw/workspace/obsidian
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${ONEDRIVE_DIR:?Set ONEDRIVE_DIR}"
+        target: /home/node/.openclaw/workspace/onedrive-readonly
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${PUBLIC_SHARED_STORAGE_DIR:?Set PUBLIC_SHARED_STORAGE_DIR}"
+        target: /home/node/.openclaw/workspace/public-shared-storage
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind:
+          create_host_path: false
+    dns:
+      - "${AGENT_DNS_PRIMARY:-1.1.1.1}"
+      - "${AGENT_DNS_SECONDARY:-8.8.8.8}"
+    ports:
+      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node/.openclaw
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+      OPENCLAW_DISABLE_BONJOUR: "1"
+      OPENCLAW_SERVICE_REPAIR_POLICY: external
+      XDG_CACHE_HOME: /home/node/.cache
+
+  hermes:
+    profiles: [hermes]
+    build:
+      context: ./images/hermes
+      args:
+        MINIMAX_SKILLS_REF: "${MINIMAX_SKILLS_REF:?MINIMAX_SKILLS_REF must be set in .env}"
+    image: "${HERMES_IMAGE:-hermes-agent-local:${HERMES_AGENT_VERSION:-0.20.0}}"
+    container_name: hermes-agent
+    restart: unless-stopped
+    stop_grace_period: 30s
+    shm_size: 1gb
+    working_dir: /opt/data/workspace
+    env_file:
+      - path: "${HERMES_ENV_FILE:?Set HERMES_ENV_FILE}"
+        required: false
+    environment:
+      HERMES_GID: "1001"
+      HERMES_HOME: /opt/data
+      HERMES_UID: "1001"
+      TZ: "${TZ:-Asia/Shanghai}"
+    volumes:
+      - type: bind
+        source: "${HERMES_STATE_DIR:?Set HERMES_STATE_DIR}"
+        target: /opt/data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${OBSIDIAN_DIR:?Set OBSIDIAN_DIR}"
+        target: /opt/data/workspace/obsidian
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${ONEDRIVE_DIR:?Set ONEDRIVE_DIR}"
+        target: /opt/data/workspace/onedrive-readonly
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${PUBLIC_SHARED_STORAGE_DIR:?Set PUBLIC_SHARED_STORAGE_DIR}"
+        target: /opt/data/workspace/public-shared-storage
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind:
+          create_host_path: false
+    dns:
+      - "${AGENT_DNS_PRIMARY:-1.1.1.1}"
+      - "${AGENT_DNS_SECONDARY:-8.8.8.8}"
+    logging:
+      driver: journald
+    healthcheck:
+      test: [CMD-SHELL, "pgrep -f '[h]ermes.*gateway' >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+    command: [gateway, run]
