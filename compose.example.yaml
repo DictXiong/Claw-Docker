@@ -7,6 +7,7 @@ services:
       context: ./images/openclaw
       args:
         MINIMAX_SKILLS_REF: "${MINIMAX_SKILLS_REF:?MINIMAX_SKILLS_REF must be set in .env}"
+        FLYAI_SKILL_REF: "${FLYAI_SKILL_REF:?FLYAI_SKILL_REF must be set in .env}"
     image: "${OPENCLAW_IMAGE:-openclaw-jarvis:local}"
     container_name: openclaw-jarvis
     restart: unless-stopped
@@ -64,6 +65,7 @@ services:
       context: ./images/hermes
       args:
         MINIMAX_SKILLS_REF: "${MINIMAX_SKILLS_REF:?MINIMAX_SKILLS_REF must be set in .env}"
+        FLYAI_SKILL_REF: "${FLYAI_SKILL_REF:?FLYAI_SKILL_REF must be set in .env}"
     image: "${HERMES_IMAGE:-hermes-agent-local:${HERMES_AGENT_VERSION:-0.20.0}}"
     container_name: hermes-agent
     restart: unless-stopped

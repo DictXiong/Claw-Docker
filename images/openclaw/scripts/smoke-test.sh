@@ -10,6 +10,12 @@ cleanup() {
 trap cleanup EXIT
 
 docker run --rm --network none --entrypoint openclaw "${IMAGE}" --version
+docker run --rm --network none --user node --entrypoint sh "${IMAGE}" -c '
+  command -v flyai >/dev/null
+  flyai --help >/dev/null
+  test -f /opt/flyai-skill/LICENSE
+  test -f /opt/flyai-skill/skills/flyai/SKILL.md
+'
 docker run --rm --network none --entrypoint bash "${IMAGE}" \
   /opt/minimax-skills/skills/minimax-docx/scripts/env_check.sh
 docker run --rm --network none --entrypoint node "${IMAGE}" \
@@ -19,7 +25,10 @@ docker run --rm --network none --entrypoint node "${IMAGE}" \
 docker run --rm --network none \
   --tmpfs /home/node/.openclaw:rw,size=128m,mode=0700 \
   --mount type=bind,source=/etc/hostname,target=/home/node/.openclaw/workspace/extra-readonly.txt,readonly \
-  "${IMAGE}" true
+  "${IMAGE}" sh -c '
+    test -L /home/node/.openclaw/skills/flyai
+    test -f /home/node/.openclaw/skills/flyai/SKILL.md
+  '
 
 docker run -d --name "${CONTAINER}" --network none \
   --tmpfs /home/node/.openclaw:rw,size=128m,mode=0700 \

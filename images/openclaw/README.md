@@ -10,12 +10,13 @@
 - Chromium / Playwright
 - LibreOffice、Pandoc、Poppler、Python Office/PDF 库
 - MiniMax 官方文档技能：`minimax-docx`、`minimax-pdf`、`minimax-xlsx`、`pptx-generator`
+- FlyAI 旅行搜索技能 `flyai` 及其 `flyai` CLI
 
-MiniMax 技能在构建时按 commit SHA 锁定，并在启动时链接到：
+MiniMax 和 FlyAI 技能在构建时按 commit SHA 锁定，并在启动时链接到：
 
 `/home/node/.openclaw/skills`
 
-技能文件本体位于镜像的 `/opt/minimax-skills/skills`。持久化目录中只保存符号链接，因此重新构建镜像即可更新技能内容，不会复制或覆盖 workspace 文件。
+技能文件本体分别位于镜像的 `/opt/minimax-skills/skills` 和 `/opt/flyai-skill/skills`。持久化目录中只保存符号链接，因此重新构建镜像即可更新技能内容，不会复制或覆盖 workspace 文件。
 
 `minimax-docx` CLI 会在独立构建阶段发布为自包含可执行文件，运行镜像不包含 .NET SDK，也不会在运行时编译源码。容器专用说明由 `patches/minimax-skills-openclaw.patch` 应用，上游 commit 更新后需要重新检查该补丁。
 
@@ -110,7 +111,7 @@ docker exec openclaw-jarvis \
 
 ## 更新版本
 
-更新 Node.js 或基础发行版时，修改 `images/openclaw/Dockerfile` 中的版本并同步刷新 registry digest；更新 MiniMax skills 时修改仓库根目录的 `.env`。更新 OpenClaw、ClawHub、Playwright 或 PptxGenJS 时修改 `images/openclaw/package.json`，然后重新生成 lock：
+更新 Node.js 或基础发行版时，修改 `images/openclaw/Dockerfile` 中的版本并同步刷新 registry digest；更新 MiniMax 或 FlyAI skill 时修改仓库根目录的 `.env`。更新 FlyAI CLI、OpenClaw、ClawHub、Playwright 或 PptxGenJS 时修改 `images/openclaw/package.json`，然后重新生成 lock：
 
 ```bash
 cd images/openclaw

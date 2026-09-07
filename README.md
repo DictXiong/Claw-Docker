@@ -67,10 +67,11 @@ be prepared outside the containers.
 
 ## Updating
 
-`MINIMAX_SKILLS_REF` in `.env` is shared by both builds. Updating it requires
-reviewing both agent-specific patches and running both smoke tests. Other
-dependencies remain independently locked because OpenClaw and Hermes use
-different language runtimes and base images.
+`MINIMAX_SKILLS_REF` and `FLYAI_SKILL_REF` in `.env` are shared by both builds.
+Updating the MiniMax ref requires reviewing both agent-specific patches;
+updating either ref requires running both smoke tests. The FlyAI CLI is pinned
+in each image's npm lock. Other dependencies remain independently locked
+because OpenClaw and Hermes use different language runtimes and base images.
 
 See `images/openclaw/README.md` and `images/hermes/README.md` for agent-specific
 details.

@@ -10,14 +10,20 @@ MANAGED_SKILLS_DIR="${OPENCLAW_STATE_DIR}/skills"
 LEGACY_SKILLS_DIR="${OPENCLAW_WORKSPACE_DIR}/skills"
 OUTPUTS_DIR="${OPENCLAW_WORKSPACE_DIR}/outputs"
 MINIMAX_SKILLS_DIR="/opt/minimax-skills/skills"
+FLYAI_SKILLS_DIR="/opt/flyai-skill/skills"
 
 bootstrap_runtime() {
   install -d -m 0700 \
     "${OPENCLAW_STATE_DIR}" "${OPENCLAW_WORKSPACE_DIR}" "${OUTPUTS_DIR}" "${XDG_CACHE_HOME}"
   install -d -m 0755 "${MANAGED_SKILLS_DIR}"
 
-  for skill in minimax-docx minimax-pdf minimax-xlsx pptx-generator; do
-    source_path="${MINIMAX_SKILLS_DIR}/${skill}"
+  for source_path in \
+    "${MINIMAX_SKILLS_DIR}/minimax-docx" \
+    "${MINIMAX_SKILLS_DIR}/minimax-pdf" \
+    "${MINIMAX_SKILLS_DIR}/minimax-xlsx" \
+    "${MINIMAX_SKILLS_DIR}/pptx-generator" \
+    "${FLYAI_SKILLS_DIR}/flyai"; do
+    skill="$(basename "${source_path}")"
     target_path="${MANAGED_SKILLS_DIR}/${skill}"
     legacy_path="${LEGACY_SKILLS_DIR}/${skill}"
 

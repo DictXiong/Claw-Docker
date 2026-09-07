@@ -40,10 +40,12 @@ jobs:
           set -a
           source .env
           set +a
+          : "${FLYAI_SKILL_REF:?FLYAI_SKILL_REF is required}"
           : "${MINIMAX_SKILLS_REF:?MINIMAX_SKILLS_REF is required}"
           openclaw="$(node -p "require('./images/openclaw/package.json').dependencies.openclaw")"
           {
             echo "openclaw=${openclaw}"
+            echo "flyai_skill_ref=${FLYAI_SKILL_REF}"
             echo "minimax_skills_ref=${MINIMAX_SKILLS_REF}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -58,6 +60,7 @@ jobs:
           load: true
           tags: openclaw-smoke:${{ github.sha }}
           build-args: |
+            FLYAI_SKILL_REF=${{ steps.versions.outputs.flyai_skill_ref }}
             MINIMAX_SKILLS_REF=${{ steps.versions.outputs.minimax_skills_ref }}
           cache-from: type=gha,scope=openclaw
           cache-to: type=gha,mode=max,scope=openclaw
@@ -94,6 +97,7 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           build-args: |
+            FLYAI_SKILL_REF=${{ steps.versions.outputs.flyai_skill_ref }}
             MINIMAX_SKILLS_REF=${{ steps.versions.outputs.minimax_skills_ref }}
           cache-from: type=gha,scope=openclaw
           provenance: mode=max

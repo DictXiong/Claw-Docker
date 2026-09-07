@@ -6,7 +6,9 @@ separate state directory and container name, and publishes no network ports.
 The image is based on the official Hermes Agent v0.20.0 image and adds the
 runtime dependencies required by its bundled DOCX, PDF, XLSX, and PowerPoint
 skills. It also bundles MiniMax's `minimax-docx`, `minimax-pdf`,
-`minimax-xlsx`, and `pptx-generator` skills at a pinned upstream commit.
+`minimax-xlsx`, and `pptx-generator` skills, plus the FlyAI travel-search
+skill and its `flyai` CLI. Both upstream skill repositories are pinned by
+commit SHA.
 
 MiniMax skills are placed under `/opt/hermes/skills/minimax` and use Hermes'
 official bundled-skill synchronizer. Pristine copies update with the image;
@@ -14,6 +16,9 @@ user-modified persistent copies are preserved. The DOCX CLI is precompiled in
 a separate build stage. PDF cover rendering uses Hermes' existing Chromium
 Headless Shell directly, so no additional Playwright package or browser is
 installed.
+
+FlyAI is placed under `/opt/hermes/skills/travel/flyai` and synchronized by
+the same bundled-skill mechanism.
 
 ## Build and run
 
@@ -25,10 +30,11 @@ docker compose --env-file .env --env-file compose.env.example \
   -f compose.example.yaml --profile hermes up -d hermes
 ```
 
-To update the MiniMax skills, change `MINIMAX_SKILLS_REF` in the repository
-root `.env`,
-rebuild, and rerun the smoke test. The Hermes-specific patch must be reviewed
-whenever that upstream commit changes.
+To update the MiniMax or FlyAI skills, change `MINIMAX_SKILLS_REF` or
+`FLYAI_SKILL_REF` in the repository root `.env`, rebuild, and rerun the smoke
+test. The Hermes-specific MiniMax patch must be reviewed whenever that upstream
+commit changes. Update the pinned FlyAI CLI version and package lock separately
+when required.
 
 Persistent state is mounted at `/opt/data` inside the container. The writable
 workspace and its `outputs` directory live inside that single state root.

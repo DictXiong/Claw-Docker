@@ -1,5 +1,20 @@
 FROM node:24.15.0-bookworm-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS node-runtime
 
+FROM node-runtime AS flyai-skill-builder
+
+ARG FLYAI_SKILL_REF
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --filter=blob:none --no-checkout https://github.com/alibaba-flyai/flyai-skill.git /opt/flyai-skill \
+    && git -C /opt/flyai-skill sparse-checkout init --cone \
+    && git -C /opt/flyai-skill sparse-checkout set skills/flyai \
+    && git -C /opt/flyai-skill checkout "${FLYAI_SKILL_REF}" \
+    && test -f /opt/flyai-skill/LICENSE \
+    && test -f /opt/flyai-skill/skills/flyai/SKILL.md \
+    && rm -rf /opt/flyai-skill/.git
+
 FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:72b30253425d2707ea1dda364477136003586a9bdab63a988a84d1710f940d35 AS minimax-builder
 
 ARG MINIMAX_SKILLS_REF
@@ -63,6 +78,7 @@ RUN python3 -m venv /opt/venv \
 
 COPY package.json package-lock.json /opt/node-tools/
 RUN npm ci --prefix /opt/node-tools --omit=dev --no-audit --no-fund \
+    && ln -s /opt/node-tools/node_modules/.bin/flyai /usr/local/bin/flyai \
     && ln -s /opt/node-tools/node_modules/.bin/openclaw /usr/local/bin/openclaw \
     && ln -s /opt/node-tools/node_modules/.bin/clawhub /usr/local/bin/clawhub \
     && ln -s /opt/node-tools/node_modules/.bin/playwright /usr/local/bin/playwright \
@@ -73,6 +89,7 @@ RUN playwright install chromium --with-deps --only-shell \
 
 COPY --from=minimax-builder /opt/minimax-skills /opt/minimax-skills
 COPY --from=minimax-builder /opt/minimax-docx-cli /opt/minimax-docx-cli
+COPY --from=flyai-skill-builder /opt/flyai-skill /opt/flyai-skill
 
 RUN groupadd --gid 1001 node \
     && useradd --uid 1001 --gid node --groups root --home-dir /home/node --no-create-home --shell /bin/bash node \
