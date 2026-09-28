@@ -10,6 +10,7 @@ cleanup() {
 trap cleanup EXIT
 
 docker run --rm --network none --entrypoint openclaw "${IMAGE}" --version
+docker run --rm --network none --user node --entrypoint /opt/venv/bin/pip "${IMAGE}" check
 docker run --rm --network none --user node --entrypoint sh "${IMAGE}" -c '
   command -v flyai >/dev/null
   flyai --help >/dev/null
@@ -21,6 +22,25 @@ docker run --rm --network none --entrypoint bash "${IMAGE}" \
   /opt/minimax-skills/skills/minimax-docx/scripts/env_check.sh
 docker run --rm --network none --entrypoint node "${IMAGE}" \
   -e 'require("playwright"); require("pptxgenjs")'
+docker run --rm --network none --user node --entrypoint node "${IMAGE}" -e '
+  const assert = require("node:assert/strict");
+  const { chromium } = require("playwright");
+  (async () => {
+    const browser = await chromium.launch({ args: ["--no-sandbox"] });
+    try {
+      const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+      await page.setContent("<title>Smoke</title><h1>Browser ready</h1>");
+      assert.equal(await page.title(), "Smoke");
+      const png = await page.screenshot();
+      assert.equal(png.subarray(1, 4).toString(), "PNG");
+      assert.equal(png.readUInt32BE(16), 800);
+      assert.equal(png.readUInt32BE(20), 600);
+      assert.ok(png.length > 1000);
+    } finally {
+      await browser.close();
+    }
+  })().catch(error => { console.error(error); process.exitCode = 1; });
+'
 
 # Any future read-only workspace mount must remain outside entrypoint ownership repair.
 docker run --rm --network none \

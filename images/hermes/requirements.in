@@ -1,7 +1,12 @@
+-c constraints.txt
+
 defusedxml
 lxml
-lark-oapi==1.7.3
+# Keep Feishu dependencies aligned with Hermes tools.lazy_deps platform.feishu.
+lark-oapi==1.6.8
 markitdown[pptx,xlsx]
+# The base image's msal 1.36 rejects Hermes' required cryptography 50.
+msal==1.39.0
 openpyxl
 pandas
 pdfplumber
@@ -11,5 +16,5 @@ pymupdf4llm
 pypdf
 python-docx
 python-pptx
-qrcode==8.2
+qrcode==7.4.2
 reportlab

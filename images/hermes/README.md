@@ -53,6 +53,18 @@ docker run --rm --entrypoint uv -v "$PWD:/work" -w /work \
 Keep the `--exclude-newer` value in this command aligned with the install step
 in the Dockerfile. The upstream Hermes image has its own earlier default cutoff.
 
+Review `constraints.txt` against the new base image's Hermes package metadata
+when upgrading that image. Add-on tools share its Python environment and must
+not override core dependency pins. The protobuf bound preserves compatibility
+with its Google/OpenTelemetry packages; MSAL 1.39 replaces the base image's
+older release, which rejects Hermes' required cryptography version. Both the
+build and smoke test run `uv pip check` over the complete environment.
+
+Keep `lark-oapi` and `qrcode` aligned with the exact `platform.feishu` pins in
+Hermes' `tools/lazy_deps.py`. Newer versions can import successfully but still
+fail the gateway's dependency check and disable Feishu. The smoke test checks
+both that dependency gate and the SDK's lazy initialization.
+
 ## Use
 
 ```bash

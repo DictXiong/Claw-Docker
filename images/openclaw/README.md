@@ -117,6 +117,26 @@ sudo tar -C /srv/agents -czf openclaw-state-backup.tgz openclaw
 
 在切换服务前，用新镜像及已迁移状态执行 `openclaw config validate`。微信插件安装在持久化目录中，不随镜像升级；升级后还应检查微信收发、搜索、模型调用和网关日志。此版本的 DuckDuckGo 已改为单独的插件，本镜像会提供它；无需在容器内另行安装。若需要回退，先恢复备份的旧配置与原镜像。
 
+微信插件 2.4.6 使用了新版已移除的 `openclaw/plugin-sdk/channel-runtime`，会出现插件显示 loaded、但渠道无法启动的情况。已验证 2.4.9 可以在此镜像中启动。备份状态后，以 `node` 用户更新：
+
+```bash
+docker exec --user node openclaw-jarvis \
+  openclaw plugins update @tencent-weixin/openclaw-weixin@2.4.9
+```
+
+若 2026.9.6 的 npm 更新流程报 `Plugin artifact has no valid plugin manifest`，可在容器内下载并安装同一版本的官方 npm 发布包；无需删除账号或重新配对：
+
+```bash
+docker exec --user node openclaw-jarvis sh -ec '
+  mkdir -p "$HOME/.openclaw/plugin-archives"
+  cd "$HOME/.openclaw/plugin-archives"
+  npm pack @tencent-weixin/openclaw-weixin@2.4.9 --ignore-scripts
+  openclaw plugins install --force ./tencent-weixin-openclaw-weixin-2.4.9.tgz
+'
+```
+
+`--force` 确认信任此发布包并替换旧插件，不会跳过安装策略检查。归档安装会改为本地包来源，后续更新需明确指定新包版本。安装后检查 `openclaw channels status --json` 中已启用账号的 `running` 和 `lastError`，并实际测试收发；Docker 的 healthy 和插件的 loaded 都不代表消息渠道可用。
+
 ## 验证文档技能
 
 ```bash

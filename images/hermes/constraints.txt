@@ -1,0 +1,16 @@
+# Shared core dependencies pinned by Hermes v2026.9.24. Review when upgrading
+# the base image; build-time `uv pip check` detects drift against its metadata.
+certifi==2026.5.20
+cryptography==50.0.0
+httpx==0.28.1
+packaging==26.0
+pillow==12.3.0
+psutil==7.2.2
+pyjwt==2.13.0
+python-dotenv==1.2.2
+pyyaml==6.0.3
+requests==2.33.0
+websockets==15.0.1
+
+# The base image's Google/OpenTelemetry packages do not support protobuf 7.
+protobuf<7

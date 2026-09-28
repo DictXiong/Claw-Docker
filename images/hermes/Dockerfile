@@ -61,6 +61,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.lock /tmp/requirements.lock
 RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache \
       --exclude-newer 2026-09-25T00:00:00Z --requirement /tmp/requirements.lock \
+    && uv pip check --python /opt/hermes/.venv/bin/python \
     && rm /tmp/requirements.lock
 
 COPY package.json package-lock.json /opt/hermes/extra-node-tools/

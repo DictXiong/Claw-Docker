@@ -4,12 +4,15 @@ set -euo pipefail
 IMAGE="${1:?usage: smoke-test.sh IMAGE}"
 
 docker run --rm --network none --entrypoint hermes "${IMAGE}" --version
+docker run --rm --network none --entrypoint uv "${IMAGE}" \
+  pip check --python /opt/hermes/.venv/bin/python
 docker run --rm --network none --user hermes --entrypoint sh "${IMAGE}" -c '
   command -v fd flyai gs jq libreoffice pandoc pdftoppm qpdf rg soffice >/dev/null
   flyai --help >/dev/null
   cd /opt/hermes
   node -e '\''for (const m of ["docx", "pptxgenjs", "react-icons", "sharp"]) require(m)'\''
-  /opt/hermes/.venv/bin/python -c '\''import lark_oapi, lxml, markitdown, openpyxl, pandas, pymupdf, pypdf, qrcode, docx, pptx, reportlab; import plugins.platforms.feishu.adapter; qrcode.make("smoke")'\''
+  /opt/hermes/.venv/bin/python -c '\''import lark_oapi, lxml, markitdown, openpyxl, pandas, pymupdf, pypdf, qrcode, docx, pptx, reportlab; qrcode.make("smoke")'\''
+  /opt/hermes/.venv/bin/python -c '\''from tools.lazy_deps import feature_missing; from plugins.platforms.feishu.adapter import feishu_deps_present, _load_lark_oapi; assert feishu_deps_present(), feature_missing("platform.feishu"); assert _load_lark_oapi(), "Feishu SDK initialization failed"'\''
   for skill in minimax-docx minimax-pdf minimax-xlsx pptx-generator; do
     test -f "/opt/hermes/skills/minimax/${skill}/SKILL.md"
     test -L "/opt/minimax-skills/skills/${skill}"
