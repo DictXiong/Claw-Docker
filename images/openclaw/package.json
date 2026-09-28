@@ -2,11 +2,15 @@
   "name": "claw-docker-runtime",
   "version": "1.0.0",
   "private": true,
+  "allowScripts": {
+    "openclaw@2026.9.6": true
+  },
   "dependencies": {
     "@fly-ai/flyai-cli": "1.0.16",
-    "clawhub": "0.23.1",
-    "openclaw": "2026.7.1-2",
-    "playwright": "1.61.0",
+    "@openclaw/duckduckgo-plugin": "2026.9.6",
+    "clawhub": "0.23.3",
+    "openclaw": "2026.9.6",
+    "playwright": "1.63.0",
     "pptxgenjs": "4.0.1"
   }
 }

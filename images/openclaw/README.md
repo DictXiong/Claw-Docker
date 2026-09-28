@@ -4,7 +4,7 @@
 
 ## 镜像包含
 
-- OpenClaw、ClawHub、Playwright 和 PptxGenJS（锁定在 `package-lock.json`）
+- OpenClaw、ClawHub、Playwright、PptxGenJS 和 DuckDuckGo 搜索插件（锁定在 `package-lock.json`）
 - Node.js 24、Python 3
 - `fd`、`ripgrep`、`jq` 等文件查找和文本处理工具
 - Chromium / Playwright
@@ -17,6 +17,8 @@ MiniMax 和 FlyAI 技能在构建时按 commit SHA 锁定，并在启动时链�
 `/home/node/.openclaw/skills`
 
 技能文件本体分别位于镜像的 `/opt/minimax-skills/skills` 和 `/opt/flyai-skill/skills`。持久化目录中只保存符号链接，因此重新构建镜像即可更新技能内容，不会复制或覆盖 workspace 文件。
+
+DuckDuckGo 插件也从镜像链接到持久化目录的 `extensions/duckduckgo`；已有同名目录不会被覆盖。
 
 `minimax-docx` CLI 会在独立构建阶段发布为自包含可执行文件，运行镜像不包含 .NET SDK，也不会在运行时编译源码。容器专用说明由 `patches/minimax-skills-openclaw.patch` 应用，上游 commit 更新后需要重新检查该补丁。
 
@@ -102,6 +104,19 @@ docker run --rm --entrypoint chown \
 sudo tar -C /srv/agents -czf openclaw-state-backup.tgz openclaw
 ```
 
+### 从 2026.7.1-2 升级到 2026.9.6
+
+先停止旧容器并备份状态目录，再检查持久化的 `openclaw.json`。新版不接受以下旧键，须从 JSON 中删除（保留其他配置、令牌和会话）：
+
+- `meta.lastTouchedAt`
+- `agents.defaults.memorySearch`
+- `gateway.tailscale.resetOnExit`
+- `plugins.bundledDiscovery`
+
+例如，用 `jq 'del(.meta.lastTouchedAt, .agents.defaults.memorySearch, .gateway.tailscale.resetOnExit, .plugins.bundledDiscovery)'` 生成新配置，并在核对差异、保留原文件属主与权限后替换。不要对生产状态直接运行未经审查的 `doctor --fix`。旧配置的 `plugins.allow` 若包含 `phone-control`，新版会提示该插件未找到；确认不再使用后可移除。
+
+在切换服务前，用新镜像及已迁移状态执行 `openclaw config validate`。微信插件安装在持久化目录中，不随镜像升级；升级后还应检查微信收发、搜索、模型调用和网关日志。此版本的 DuckDuckGo 已改为单独的插件，本镜像会提供它；无需在容器内另行安装。若需要回退，先恢复备份的旧配置与原镜像。
+
 ## 验证文档技能
 
 ```bash
@@ -118,7 +133,7 @@ cd images/openclaw
 npm install --package-lock-only --ignore-scripts --no-audit --no-fund
 ```
 
-更新 Python 依赖时重新生成并审查 `requirements.lock`。重新构建镜像后再启动；不要在运行中的容器里执行全局自更新，因为容器重建会覆盖这类修改。
+更新 Python 依赖时，从 `requirements.in` 重新生成并审查 `requirements.lock`（目标 Python 3.12）。重新构建镜像后再启动；不要在运行中的容器里执行全局自更新，因为容器重建会覆盖这类修改。
 
 ## 发布镜像
 

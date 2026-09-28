@@ -1,6 +1,6 @@
-FROM node:24.15.0-bookworm-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS node-runtime
+FROM node:24.21.0-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS node-runtime
 
-FROM node-runtime AS flyai-skill-builder
+FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:2e171ed9da38a01abb2005b8b2ce9df0c40e583a815e977a2c84d47778005dde AS flyai-skill-builder
 
 ARG FLYAI_SKILL_REF
 
@@ -15,7 +15,7 @@ RUN git clone --filter=blob:none --no-checkout https://github.com/alibaba-flyai/
     && test -f /opt/flyai-skill/skills/flyai/SKILL.md \
     && rm -rf /opt/flyai-skill/.git
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:72b30253425d2707ea1dda364477136003586a9bdab63a988a84d1710f940d35 AS minimax-builder
+FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:2e171ed9da38a01abb2005b8b2ce9df0c40e583a815e977a2c84d47778005dde AS minimax-builder
 
 ARG MINIMAX_SKILLS_REF
 
@@ -42,7 +42,7 @@ RUN git clone --filter=blob:none --no-checkout https://github.com/MiniMax-AI/ski
       /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Core/obj \
       /opt/minimax-docx-cli/*.pdb
 
-FROM ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
+FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3
 
 ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/node \

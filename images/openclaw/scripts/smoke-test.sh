@@ -15,6 +15,7 @@ docker run --rm --network none --user node --entrypoint sh "${IMAGE}" -c '
   flyai --help >/dev/null
   test -f /opt/flyai-skill/LICENSE
   test -f /opt/flyai-skill/skills/flyai/SKILL.md
+  test -f /opt/node-tools/node_modules/@openclaw/duckduckgo-plugin/package.json
 '
 docker run --rm --network none --entrypoint bash "${IMAGE}" \
   /opt/minimax-skills/skills/minimax-docx/scripts/env_check.sh
@@ -28,6 +29,12 @@ docker run --rm --network none \
   "${IMAGE}" sh -c '
     test -L /home/node/.openclaw/skills/flyai
     test -f /home/node/.openclaw/skills/flyai/SKILL.md
+    test -L /home/node/.openclaw/extensions/duckduckgo
+    test -f /home/node/.openclaw/extensions/duckduckgo/package.json
+    openclaw plugins list --json | jq -e '\''
+      .plugins[] | select(.id == "duckduckgo" and .status == "loaded" and
+        (.webSearchProviderIds | index("duckduckgo")))
+    '\'' >/dev/null
   '
 
 docker run -d --name "${CONTAINER}" --network none \

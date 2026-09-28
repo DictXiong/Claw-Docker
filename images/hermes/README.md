@@ -3,7 +3,7 @@
 Isolated Hermes Agent trial deployment. It runs alongside OpenClaw with a
 separate state directory and container name, and publishes no network ports.
 
-The image is based on the official Hermes Agent v0.20.0 image and adds the
+The image is based on the official Hermes Agent v0.21.5 image and adds the
 runtime dependencies required by its bundled DOCX, PDF, XLSX, and PowerPoint
 skills. It also bundles MiniMax's `minimax-docx`, `minimax-pdf`,
 `minimax-xlsx`, and `pptx-generator` skills, plus the FlyAI travel-search
@@ -25,7 +25,7 @@ the same bundled-skill mechanism.
 ```bash
 docker compose --env-file .env --env-file compose.env.example \
   -f compose.example.yaml --profile hermes build hermes
-images/hermes/scripts/smoke-test.sh hermes-agent-local:0.20.0
+images/hermes/scripts/smoke-test.sh hermes-agent-local:0.21.5
 docker compose --env-file .env --env-file compose.env.example \
   -f compose.example.yaml --profile hermes up -d hermes
 ```
@@ -45,11 +45,13 @@ cutoff. To update them, review and advance the cutoff date before rebuilding:
 ```bash
 cd images/hermes
 docker run --rm --entrypoint uv -v "$PWD:/work" -w /work \
-  nousresearch/hermes-agent:latest pip compile --upgrade --no-cache \
-  --exclude-newer 2025-08-01T00:00:00Z --python-version 3.13 \
-  --exclude-newer-package lark-oapi=2026-08-04T00:00:00Z \
+  nousresearch/hermes-agent:v2026.9.24 pip compile --upgrade --no-cache \
+  --exclude-newer 2026-09-25T00:00:00Z --python-version 3.13 \
   requirements.in --output-file requirements.lock
 ```
+
+Keep the `--exclude-newer` value in this command aligned with the install step
+in the Dockerfile. The upstream Hermes image has its own earlier default cutoff.
 
 ## Use
 

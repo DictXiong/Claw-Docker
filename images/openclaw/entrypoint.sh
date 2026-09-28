@@ -7,15 +7,22 @@ export OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-${OPENCLAW_STATE_DIR}/w
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${HOME}/.cache}"
 
 MANAGED_SKILLS_DIR="${OPENCLAW_STATE_DIR}/skills"
+MANAGED_PLUGINS_DIR="${OPENCLAW_STATE_DIR}/extensions"
 LEGACY_SKILLS_DIR="${OPENCLAW_WORKSPACE_DIR}/skills"
 OUTPUTS_DIR="${OPENCLAW_WORKSPACE_DIR}/outputs"
 MINIMAX_SKILLS_DIR="/opt/minimax-skills/skills"
 FLYAI_SKILLS_DIR="/opt/flyai-skill/skills"
+DUCKDUCKGO_PLUGIN_DIR="/opt/node-tools/node_modules/@openclaw/duckduckgo-plugin"
 
 bootstrap_runtime() {
   install -d -m 0700 \
     "${OPENCLAW_STATE_DIR}" "${OPENCLAW_WORKSPACE_DIR}" "${OUTPUTS_DIR}" "${XDG_CACHE_HOME}"
   install -d -m 0755 "${MANAGED_SKILLS_DIR}"
+  install -d -m 0755 "${MANAGED_PLUGINS_DIR}"
+
+  if [[ ! -e "${MANAGED_PLUGINS_DIR}/duckduckgo" && ! -L "${MANAGED_PLUGINS_DIR}/duckduckgo" ]]; then
+    ln -s "${DUCKDUCKGO_PLUGIN_DIR}" "${MANAGED_PLUGINS_DIR}/duckduckgo"
+  fi
 
   for source_path in \
     "${MINIMAX_SKILLS_DIR}/minimax-docx" \
@@ -42,7 +49,7 @@ bootstrap_runtime
 if [[ "$(id -u)" == "0" ]]; then
   chown -h node:node \
     "${OPENCLAW_STATE_DIR}" "${OPENCLAW_WORKSPACE_DIR}" \
-    "${MANAGED_SKILLS_DIR}" "${OUTPUTS_DIR}" "${XDG_CACHE_HOME}"
+    "${MANAGED_SKILLS_DIR}" "${MANAGED_PLUGINS_DIR}" "${OUTPUTS_DIR}" "${XDG_CACHE_HOME}"
   exec gosu node "$0" "$@"
 fi
 

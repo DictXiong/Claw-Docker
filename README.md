@@ -41,7 +41,7 @@ Run the image-specific smoke tests:
 
 ```bash
 images/openclaw/scripts/smoke-test.sh openclaw-jarvis:local
-images/hermes/scripts/smoke-test.sh hermes-agent-local:0.20.0
+images/hermes/scripts/smoke-test.sh hermes-agent-local:0.21.5
 ```
 
 The sample Compose file defines both services behind profiles. Supply your own

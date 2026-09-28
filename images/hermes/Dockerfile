@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:72b30253425d2707ea1dda364477136003586a9bdab63a988a84d1710f940d35 AS minimax-builder
+FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:2e171ed9da38a01abb2005b8b2ce9df0c40e583a815e977a2c84d47778005dde AS minimax-builder
 
 ARG MINIMAX_SKILLS_REF
 
@@ -28,7 +28,7 @@ RUN git clone --filter=blob:none --no-checkout https://github.com/MiniMax-AI/ski
       /opt/minimax-skills/skills/minimax-docx/scripts/dotnet/MiniMaxAIDocx.Core/obj \
       /opt/minimax-docx-cli/*.pdb
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:72b30253425d2707ea1dda364477136003586a9bdab63a988a84d1710f940d35 AS flyai-skill-builder
+FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:2e171ed9da38a01abb2005b8b2ce9df0c40e583a815e977a2c84d47778005dde AS flyai-skill-builder
 
 ARG FLYAI_SKILL_REF
 
@@ -43,7 +43,7 @@ RUN git clone --filter=blob:none --no-checkout https://github.com/alibaba-flyai/
     && test -f /opt/flyai-skill/skills/flyai/SKILL.md \
     && rm -rf /opt/flyai-skill/.git
 
-FROM nousresearch/hermes-agent:latest@sha256:248024e18a05b0ee2d600a81538b1a3fd60653afa699814f68c2bdd928c19b47
+FROM nousresearch/hermes-agent:v2026.9.24@sha256:fca358f12efd65bfaaca05884166f15c0e2788375ca30d77061ac1ebc96452b7
 
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
@@ -59,7 +59,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.lock /tmp/requirements.lock
-RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache --requirement /tmp/requirements.lock \
+RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache \
+      --exclude-newer 2026-09-25T00:00:00Z --requirement /tmp/requirements.lock \
     && rm /tmp/requirements.lock
 
 COPY package.json package-lock.json /opt/hermes/extra-node-tools/

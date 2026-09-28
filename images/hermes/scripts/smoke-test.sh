@@ -9,7 +9,7 @@ docker run --rm --network none --user hermes --entrypoint sh "${IMAGE}" -c '
   flyai --help >/dev/null
   cd /opt/hermes
   node -e '\''for (const m of ["docx", "pptxgenjs", "react-icons", "sharp"]) require(m)'\''
-  /opt/hermes/.venv/bin/python -c '\''import lark_oapi, lxml, markitdown, openpyxl, pandas, pymupdf, pypdf, qrcode, docx, pptx, reportlab'\''
+  /opt/hermes/.venv/bin/python -c '\''import lark_oapi, lxml, markitdown, openpyxl, pandas, pymupdf, pypdf, qrcode, docx, pptx, reportlab; import plugins.platforms.feishu.adapter; qrcode.make("smoke")'\''
   for skill in minimax-docx minimax-pdf minimax-xlsx pptx-generator; do
     test -f "/opt/hermes/skills/minimax/${skill}/SKILL.md"
     test -L "/opt/minimax-skills/skills/${skill}"
