@@ -43,6 +43,24 @@ RUN git clone --filter=blob:none --no-checkout https://github.com/alibaba-flyai/
     && test -f /opt/flyai-skill/skills/flyai/SKILL.md \
     && rm -rf /opt/flyai-skill/.git
 
+FROM mcr.microsoft.com/dotnet/sdk:8.0-noble@sha256:2e171ed9da38a01abb2005b8b2ce9df0c40e583a815e977a2c84d47778005dde AS lark-skill-builder
+
+# Match the fixed @larksuite/cli version in package.json (upstream v1.0.97).
+ARG LARK_CLI_SKILLS_REF=72579c80027c863ca51d5f9affda72a70ab0d8a6
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --filter=blob:none --no-checkout https://github.com/larksuite/cli.git /opt/lark-cli \
+    && git -C /opt/lark-cli sparse-checkout init --cone \
+    && git -C /opt/lark-cli sparse-checkout set skills \
+    && git -C /opt/lark-cli checkout "${LARK_CLI_SKILLS_REF}" \
+    && for skill in /opt/lark-cli/skills/lark-*; do \
+      test -f "$skill/SKILL.md" || exit 1; \
+      cp /opt/lark-cli/LICENSE "$skill/LICENSE" || exit 1; \
+    done \
+    && rm -rf /opt/lark-cli/.git
+
 FROM nousresearch/hermes-agent:v2026.9.24@sha256:fca358f12efd65bfaaca05884166f15c0e2788375ca30d77061ac1ebc96452b7
 
 ENV LANG=C.UTF-8 \
@@ -64,9 +82,14 @@ RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache \
     && uv pip check --python /opt/hermes/.venv/bin/python \
     && rm /tmp/requirements.lock
 
+COPY --from=lark-skill-builder /opt/lark-cli/package.json /opt/hermes/lark-cli-skills-package.json
 COPY package.json package-lock.json /opt/hermes/extra-node-tools/
 RUN npm ci --prefix /opt/hermes/extra-node-tools --omit=dev --no-audit --no-fund \
+    && node -e 'const cli = require("/opt/hermes/extra-node-tools/node_modules/@larksuite/cli/package.json"); const skills = require("/opt/hermes/lark-cli-skills-package.json"); if (cli.version !== skills.version) throw new Error("lark-cli and bundled skills versions differ");' \
+    && node /opt/hermes/extra-node-tools/node_modules/@larksuite/cli/scripts/install.js \
+    && test -x /opt/hermes/extra-node-tools/node_modules/@larksuite/cli/bin/lark-cli \
     && ln -s /opt/hermes/extra-node-tools/node_modules/.bin/flyai /usr/local/bin/flyai \
+    && ln -s /opt/hermes/extra-node-tools/node_modules/.bin/lark-cli /usr/local/bin/lark-cli \
     && npm cache clean --force \
     && usermod -aG root hermes
 
@@ -77,6 +100,7 @@ COPY --from=minimax-builder /opt/minimax-skills/skills/pptx-generator /opt/herme
 COPY --from=minimax-builder /opt/minimax-docx-cli /opt/minimax-docx-cli
 COPY --from=flyai-skill-builder /opt/flyai-skill/skills/flyai /opt/hermes/skills/travel/flyai
 COPY --from=flyai-skill-builder /opt/flyai-skill/LICENSE /opt/hermes/skills/travel/flyai/LICENSE
+COPY --from=lark-skill-builder /opt/lark-cli/skills /opt/hermes/skills/feishu
 
 RUN install -d -m 0755 /opt/minimax-skills/skills \
     && for skill in minimax-docx minimax-pdf minimax-xlsx pptx-generator; do \

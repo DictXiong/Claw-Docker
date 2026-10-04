@@ -7,8 +7,9 @@ The image is based on the official Hermes Agent v0.21.5 image and adds the
 runtime dependencies required by its bundled DOCX, PDF, XLSX, and PowerPoint
 skills. It also bundles MiniMax's `minimax-docx`, `minimax-pdf`,
 `minimax-xlsx`, and `pptx-generator` skills, plus the FlyAI travel-search
-skill and its `flyai` CLI. Both upstream skill repositories are pinned by
-commit SHA.
+skill and its `flyai` CLI. It also includes the official `lark-cli` 1.0.97
+and its matching Feishu/Lark skills. All upstream skill repositories are
+pinned by commit SHA; both CLIs are pinned in the npm lock.
 
 MiniMax skills are placed under `/opt/hermes/skills/minimax` and use Hermes'
 official bundled-skill synchronizer. Pristine copies update with the image;
@@ -19,6 +20,13 @@ installed.
 
 FlyAI is placed under `/opt/hermes/skills/travel/flyai` and synchronized by
 the same bundled-skill mechanism.
+
+The complete upstream Lark skill bundle lives under `/opt/hermes/skills/feishu`
+and uses the same synchronizer. Keeping the bundle together preserves its
+cross-skill references, including document, wiki, message, event, and shared
+authentication guidance. Installation does not grant any Feishu permissions.
+The CLI's precompiled binary is downloaded and checksum-verified during the
+image build, so normal invocation works without a runtime download.
 
 ## Build and run
 
@@ -35,6 +43,13 @@ To update the MiniMax or FlyAI skills, change `MINIMAX_SKILLS_REF` or
 test. The Hermes-specific MiniMax patch must be reviewed whenever that upstream
 commit changes. Update the pinned FlyAI CLI version and package lock separately
 when required.
+
+To update Lark, change `@larksuite/cli` in `package.json` and regenerate
+`package-lock.json`, then advance `LARK_CLI_SKILLS_REF` in the Dockerfile to the
+matching upstream release commit. The build rejects mismatched CLI/skill
+versions. Rebuild the image rather than running `lark-cli update` inside a
+container. The smoke test checks CLI execution as the `hermes` user without
+network access and verifies that every bundled Lark skill is synchronized.
 
 Persistent state is mounted at `/opt/data` inside the container. The writable
 workspace and its `outputs` directory live inside that single state root.
@@ -81,6 +96,34 @@ The container working directory is `/opt/data/workspace`. The image does not
 seed an `AGENTS.md`; this matches the Hermes default. The user or Hermes may
 create and update one later with `/init`, and it will persist in the state
 directory.
+
+## Feishu / Lark CLI
+
+After rebuilding, configure and authorize the CLI at runtime as the same user
+that runs Hermes:
+
+```bash
+docker compose --env-file .env --env-file compose.env.example \
+  -f compose.example.yaml --profile hermes exec --user hermes hermes lark-cli --version
+docker compose --env-file .env --env-file compose.env.example \
+  -f compose.example.yaml --profile hermes exec --user hermes hermes lark-cli config init
+docker compose --env-file .env --env-file compose.env.example \
+  -f compose.example.yaml --profile hermes exec --user hermes hermes lark-cli auth login
+docker compose --env-file .env --env-file compose.env.example \
+  -f compose.example.yaml --profile hermes exec --user hermes hermes lark-cli auth status
+```
+
+Choose only the scopes required for your workflow. Feishu gateway chat setup
+and CLI user authorization are separate integrations; installing the CLI does
+not authorize document or message access.
+
+With this image's default `HOME=/opt/data` and `HERMES_HOME=/opt/data`, the CLI
+selects its Hermes workspace and stores configuration under
+`/opt/data/.lark-cli/hermes`. On Linux, encrypted credentials and their master
+key live under `/opt/data/.local/share/lark-cli`. Both locations are inside the
+persistent state mount. Keep the complete state directory when recreating or
+backing up a container; retaining only `config.json` does not retain credentials.
+No credentials or login state are included in the image.
 
 Agent behavior, approvals, memory and skill writes, LSP support, and lazy
 installation use the upstream Hermes defaults. Compose only defines the

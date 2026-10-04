@@ -7,8 +7,14 @@ docker run --rm --network none --entrypoint hermes "${IMAGE}" --version
 docker run --rm --network none --entrypoint uv "${IMAGE}" \
   pip check --python /opt/hermes/.venv/bin/python
 docker run --rm --network none --user hermes --entrypoint sh "${IMAGE}" -c '
-  command -v fd flyai gs jq libreoffice pandoc pdftoppm qpdf rg soffice >/dev/null
+  set -eu
+  command -v fd flyai gs jq lark-cli libreoffice pandoc pdftoppm qpdf rg soffice >/dev/null
   flyai --help >/dev/null
+  test -x /opt/hermes/extra-node-tools/node_modules/@larksuite/cli/bin/lark-cli
+  lark-cli --version
+  for domain in auth docs wiki im event; do
+    lark-cli "$domain" --help >/dev/null
+  done
   cd /opt/hermes
   node -e '\''for (const m of ["docx", "pptxgenjs", "react-icons", "sharp"]) require(m)'\''
   /opt/hermes/.venv/bin/python -c '\''import lark_oapi, lxml, markitdown, openpyxl, pandas, pymupdf, pypdf, qrcode, docx, pptx, reportlab; qrcode.make("smoke")'\''
@@ -19,6 +25,10 @@ docker run --rm --network none --user hermes --entrypoint sh "${IMAGE}" -c '
   done
   test -f /opt/hermes/skills/travel/flyai/LICENSE
   test -f /opt/hermes/skills/travel/flyai/SKILL.md
+  for skill in /opt/hermes/skills/feishu/lark-*; do
+    test -f "$skill/SKILL.md"
+    test -f "$skill/LICENSE"
+  done
   bash /opt/minimax-skills/skills/minimax-docx/scripts/env_check.sh
   bash /opt/minimax-skills/skills/minimax-pdf/scripts/make.sh check
 
@@ -33,9 +43,16 @@ docker run --rm --network none --user hermes --entrypoint sh "${IMAGE}" -c '
 docker run --rm --network none \
   --tmpfs /opt/data:rw,size=128m,mode=0700 \
   --entrypoint sh "${IMAGE}" -c '
+    set -eu
     cd /opt/hermes
     /opt/hermes/.venv/bin/python -c \
       "from tools.skills_sync import sync_skills; sync_skills(quiet=True)"
     test -f /opt/data/skills/travel/flyai/SKILL.md
     grep -q "^flyai:" /opt/data/skills/.bundled_manifest
+    for skill in /opt/hermes/skills/feishu/lark-*; do
+      skill_name="${skill##*/}"
+      test -f "/opt/data/skills/feishu/$skill_name/SKILL.md"
+      test -f "/opt/data/skills/feishu/$skill_name/LICENSE"
+      grep -q "^$skill_name:" /opt/data/skills/.bundled_manifest
+    done
   '
