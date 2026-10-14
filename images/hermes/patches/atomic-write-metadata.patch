@@ -2,7 +2,7 @@
 +++ b/tools/file_operations.py
 @@ -381,38 +381,19 @@
          return "'" + arg.replace("'", "'\"'\"'") + "'"
- 
+
      def _atomic_write(self, path: str, content: str) -> "ExecuteResult":
 -        """Write ``content`` atomically: stdin → temp file in the SAME directory →
 -        ``mv -f`` (same-FS rename; cross-device ``mv`` is copy+unlink, NOT atomic).

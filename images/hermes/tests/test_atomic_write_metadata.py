@@ -163,6 +163,18 @@ class AtomicMetadataTests(unittest.TestCase):
         self.assertTrue(result.error)
         self.assertEqual(list(self.directory.iterdir()), [])
 
+    def test_v4a_new_diary_inherits_directory_group(self):
+        os.chmod(self.directory, 0o2770)
+        path = self.directory / 'new.md'
+        result = self.operations().patch_v4a(
+            '*** Begin Patch\n*** Add File: ' + str(path) +
+            '\n+New diary\n*** End Patch\n')
+        self.assertFalse(result.error, result.error)
+        self.assertEqual((path.stat().st_uid, path.stat().st_gid), (1001, 0))
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o660)
+        self.assertEqual(self.calendar_read(path).returncode, 0)
+        self.assertEqual(stat.S_IMODE(self.directory.stat().st_mode), 0o2770)
+
     def test_symlink_target_preserves_group_mode_and_link(self):
         target = self.original(mode=0o2660)
         link = self.directory / 'link.md'
