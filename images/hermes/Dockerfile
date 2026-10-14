@@ -69,6 +69,12 @@ ENV LANG=C.UTF-8 \
 
 USER root
 
+COPY patches/atomic-write-metadata.patch /tmp/atomic-write-metadata.patch
+RUN git -C /opt/hermes apply --check /tmp/atomic-write-metadata.patch \
+    && git -C /opt/hermes apply /tmp/atomic-write-metadata.patch \
+    && rm /tmp/atomic-write-metadata.patch
+COPY tests/test_atomic_write_metadata.py /opt/hermes/image-tests/test_atomic_write_metadata.py
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
       dnsutils fd-find fonts-liberation fonts-noto-cjk ghostscript iputils-ping jq less \
       libreoffice-calc libreoffice-core libreoffice-impress libreoffice-writer \

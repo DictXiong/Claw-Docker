@@ -54,6 +54,16 @@ network access and verifies that every bundled Lark skill is synchronized.
 Persistent state is mounted at `/opt/data` inside the container. The writable
 workspace and its `outputs` directory live inside that single state root.
 
+The image patches Hermes' shared atomic writer to preserve an existing file's
+numeric group and mode before replacement. It does not require keeping the
+original owner. Metadata failures abort the write and clean the temporary file.
+This covers `write_file`, replacement patches and V4A patches. New files inherit
+the destination directory's setgid group and retain umask-derived permissions;
+shared calendar directories should keep setgid and use a group-readable umask.
+The smoke test uses UID 1001 with supplementary GID 0 and a separate calendar
+reader to exercise group preservation and failure cleanup without mounting a
+real vault. Review `patches/atomic-write-metadata.patch` on base-image upgrades.
+
 Python dependencies are locked for Python 3.13 with a package publication
 cutoff. To update them, review and advance the cutoff date before rebuilding:
 

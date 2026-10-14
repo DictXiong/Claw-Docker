@@ -3,6 +3,9 @@ set -euo pipefail
 
 IMAGE="${1:?usage: smoke-test.sh IMAGE}"
 
+docker run --rm --network none --user 0 --entrypoint /opt/hermes/.venv/bin/python \
+  "${IMAGE}" /opt/hermes/image-tests/test_atomic_write_metadata.py
+
 docker run --rm --network none --entrypoint hermes "${IMAGE}" --version
 docker run --rm --network none --entrypoint uv "${IMAGE}" \
   pip check --python /opt/hermes/.venv/bin/python
